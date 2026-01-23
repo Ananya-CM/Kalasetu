@@ -82,23 +82,27 @@ firebase deploy
 ```
 ---
 ## 📁 **Files**
+```bash
 ├── index.html # Main app
 ├── app.js # Firebase logic
 ├── style.css # Responsive design
 ├── checkout.html # Cart page
 ├── checkout.js # Checkout logic
 └── README.md # This file
-
+```
 ---
 
 ##📊 **Performance**
-Metric	Result
-Page Load	1.2-2s
-Real-time	<200ms
-Memory	80MB
+| Metric    | Result |
+| --------- | ------ |
+| Page Load | 1.2–2s |
+| Real-time | <200ms |
+| Memory    | 80MB   |
+
 
 ---
 ##🔒 **Security**
+
 ✅ Firebase Auth
 
 ✅ Firestore Rules
@@ -108,6 +112,7 @@ Memory	80MB
 ✅ Input validation
 
 ##🎯 **Why Unique?**
+
 Zero middlemen = 100% artisan profit
 
 AI stories preserve culture
@@ -117,6 +122,7 @@ Global CDN = instant access
 Serverless = no server cost
 
 ##🌟 **Next Steps**
+
 Razorpay payments
 
 Hindi language
