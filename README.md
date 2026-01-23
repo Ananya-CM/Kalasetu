@@ -30,3 +30,8 @@
 ---
 
 ## 🛠️ **Tech Stack**
+Frontend: HTML5, CSS3 (Flexbox, Media Queries), Vanilla JavaScript
+Backend: Firebase (Auth, Firestore, Cloud Storage)
+Database: Firestore NoSQL (Real-time WebSocket)
+Hosting: Firebase Hosting (Global CDN)
+Deployment: Firebase CLI
