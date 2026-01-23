@@ -146,4 +146,4 @@ Mobile app
 Admin panel
 
 ---
-<div align="center"> **⭐ Star if helpful!** **Built with ❤️ for artisan empowerment** </div> ```
+<div align="center"> ⭐Star if helpful!  Built with ❤️ for artisan empowerment </div>
