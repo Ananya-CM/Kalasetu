@@ -1,12 +1,12 @@
 // Initialize Firebase if not already done
 // If your checkout.js is separate, ensure Firebase SDK and config are loaded here or in checkout.html
 const firebaseConfig = {
-  apiKey: "AIzaSyDM-RDV4UNIt2sjagsS8-zqZA5SShX2QoI",
-  authDomain: "kalasetu-25a17.firebaseapp.com",
-  projectId: "kalasetu-25a17",
-  storageBucket: "kalasetu-25a17.firebasestorage.app",
-  messagingSenderId: "930750254015",
-  appId: "1:930750254015:web:3bab449ca32c1b5f396f0a"
+  apiKey: "process.env.FIREBASE_API_KEY",
+  authDomain: "process.env.FIREBASE_AUTH_DOMAIN",
+  projectId: " ",
+  storageBucket: " ",
+  messagingSenderId: " ",
+  appId: " "
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
