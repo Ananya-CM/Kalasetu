@@ -1,0 +1,14 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Firebase config (if you move it)
+firebaseConfig.js
+
+# Node
+node_modules/
+
+# Build
+dist/
+build/
