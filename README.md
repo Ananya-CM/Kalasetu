@@ -35,3 +35,42 @@
 **Database**: Firestore NoSQL (Real-time WebSocket)
 **Hosting**: Firebase Hosting (Global CDN)
 **Deployment**: Firebase CLI
+
+
+---
+
+## 🚀 **Live Demo**
+🔗 **[https://kalasetu-25a17.web.app/](https://kalasetu-25a17.web.app/)**
+
+**🧪 Test Credentials:**
+Email: testartisan@example.com
+Password: 123456
+
+---
+
+## 📱 **Screenshots**
+| **Marketplace** | **Product Upload** | **Dashboard** |
+|---|---|---|
+| ![Marketplace](screenshots/marketplace.png) | ![Upload](screenshots/upload.png) | ![Dashboard](screenshots/dashboard.png) |
+
+---
+
+## 🎮 **Architecture Flow**
+User Login → Firebase Auth → Firestore Query → Add Product →
+Cloud Storage → Real-time Sync → All Devices Updated Instantly
+
+---
+
+## 🚀 **Quick Start**
+
+### **Prerequisites**
+Node.js 18+
+Firebase Account (Free)
+
+### **Setup (5 minutes)**
+```bash
+git clone https://github.com/YOUR_USERNAME/kalasetu-artisan-marketplace.git
+cd kalasetu-artisan-marketplace
+npm install -g firebase-tools
+firebase login
+firebase serve
