@@ -29,7 +29,7 @@
 
 ---
 
-## 🛠️ **Tech Stack**
+### 🛠️ **Tech Stack**
 **Frontend**: HTML5, CSS3 (Flexbox, Media Queries), Vanilla JavaScript
 **Backend**: Firebase (Auth, Firestore, Cloud Storage)
 **Database**: Firestore NoSQL (Real-time WebSocket)
