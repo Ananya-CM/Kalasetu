@@ -74,3 +74,9 @@ cd kalasetu-artisan-marketplace
 npm install -g firebase-tools
 firebase login
 firebase serve
+---
+## 🔥 **Deploy to Production**
+
+```bash
+firebase init hosting
+firebase deploy
