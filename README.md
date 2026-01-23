@@ -30,10 +30,15 @@
 ---
 
 ### 🛠️ **Tech Stack**
-**Frontend**: HTML5, CSS3 (Flexbox, Media Queries), Vanilla JavaScript<\br>
+
+**Frontend**: HTML5, CSS3 (Flexbox, Media Queries), Vanilla JavaScript
+
 **Backend**: Firebase (Auth, Firestore, Cloud Storage)
+
 **Database**: Firestore NoSQL (Real-time WebSocket)
+
 **Hosting**: Firebase Hosting (Global CDN)
+
 **Deployment**: Firebase CLI
 
 
@@ -43,7 +48,9 @@
 🔗 **[https://kalasetu-25a17.web.app/](https://kalasetu-25a17.web.app/)**
 
 **🧪 Test Credentials:**
+
 Email: testartisan@example.com
+
 Password: 123456
 
 ---
@@ -56,6 +63,7 @@ Password: 123456
 ---
 
 ## 🎮 **Architecture Flow**
+
 User Login → Firebase Auth → Firestore Query → Add Product →
 Cloud Storage → Real-time Sync → All Devices Updated Instantly
 
@@ -64,7 +72,9 @@ Cloud Storage → Real-time Sync → All Devices Updated Instantly
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
+
 Node.js 18+
+
 Firebase Account (Free)
 
 ### **Setup (5 minutes)**
@@ -92,7 +102,7 @@ firebase deploy
 ```
 ---
 
-##📊 **Performance**
+## 📊 **Performance**
 | Metric    | Result |
 | --------- | ------ |
 | Page Load | 1.2–2s |
@@ -101,7 +111,7 @@ firebase deploy
 
 
 ---
-##🔒 **Security**
+## 🔒 **Security**
 
 ✅ Firebase Auth
 
@@ -111,7 +121,9 @@ firebase deploy
 
 ✅ Input validation
 
-##🎯 **Why Unique?**
+---
+
+## 🎯 **Why Unique?**
 
 Zero middlemen = 100% artisan profit
 
@@ -121,7 +133,9 @@ Global CDN = instant access
 
 Serverless = no server cost
 
-##🌟 **Next Steps**
+---
+
+## 🌟 **Next Steps**
 
 Razorpay payments
 
