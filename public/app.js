@@ -118,7 +118,6 @@ function showDashboard(user) {
   }
   showSection('dashboard');
   setupProductsListener();
-  initializeAllSections();
 }
 
 auth.onAuthStateChanged(user => {
@@ -136,6 +135,10 @@ function showSection(sectionId) {
     if (sectionId === 'products') refreshProductsList();
     else if (sectionId === 'cart') renderCart();
     else if (sectionId === 'community') loadCommunityProfiles();
+    else if (sectionId === 'market-intel') initializeMarketIntel();
+    else if (sectionId === 'marketing') initializeMarketing();
+    else if (sectionId === 'learning') initializeLearning();
+    else if (sectionId === 'analytics') initializeAnalytics();
   }
   document.querySelectorAll(".nav-link").forEach(link => link.classList.remove("active"));
   const clickedLink = document.querySelector(`[onclick*="'${sectionId}'"]`);
@@ -368,6 +371,134 @@ function disconnectUser(otherUid) {
   }).then(() => loadCommunityProfiles());
 }
 
+function initializeMarketIntel() {
+  const section = document.getElementById('market-intel-section');
+  if (!section || section.dataset.initialized) return;
+  section.innerHTML = `
+    <div class="container">
+      <h1>📊 Market Intelligence</h1>
+      <p class="section-subtitle">Insights for your craft business</p>
+      <div class="content-grid">
+        <div class="content-card">
+          <h3>🔥 Trending Categories</h3>
+          <div class="trend-item">
+            <div class="trend-name">Block Printed Textiles</div>
+            <div class="trend-badge high">+15% High Demand</div>
+            <p class="trend-info">Peak season: Oct-Mar (Wedding season)</p>
+          </div>
+          <div class="trend-item">
+            <div class="trend-name">Natural Dye Products</div>
+            <div class="trend-badge very-high">+28% Very High</div>
+            <p class="trend-info">Year-round demand from eco-conscious buyers</p>
+          </div>
+        </div>
+        <div class="content-card">
+          <h3>💰 Price Intelligence</h3>
+          <p><strong>Average Market Price:</strong> ₹2,200</p>
+          <p><strong>Your Average:</strong> ₹1,950</p>
+          <p style="color:#28a745;margin-top:12px;">✓ Competitive pricing — consider premium positioning.</p>
+        </div>
+      </div>
+    </div>
+  `;
+  section.dataset.initialized = 'true';
+}
+
+function initializeMarketing() {
+  const section = document.getElementById('marketing-section');
+  if (!section || section.dataset.initialized) return;
+  section.innerHTML = `
+    <div class="container">
+      <h1>📱 Digital Marketing Toolkit</h1>
+      <p class="section-subtitle">Grow your reach</p>
+      <div class="content-grid">
+        <div class="content-card">
+          <h3>📸 Social Media Manager</h3>
+          <p>Generate engaging posts for Instagram, Facebook & WhatsApp</p>
+          <textarea class="form-control" placeholder="Describe your product..." style="margin:12px 0;"></textarea>
+          <button class="btn btn-primary" onclick="alert('Feature coming soon — this would generate a caption via AI.')">Generate Caption</button>
+        </div>
+        <div class="content-card">
+          <h3>📧 Email Templates</h3>
+          <div class="template-item" onclick="alert('Template preview coming soon.')">
+            <strong>Customer Thank You</strong>
+            <p>Post-purchase appreciation email</p>
+          </div>
+          <div class="template-item" onclick="alert('Template preview coming soon.')">
+            <strong>Monthly Newsletter</strong>
+            <p>Share new products & stories</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  section.dataset.initialized = 'true';
+}
+
+function initializeLearning() {
+  const section = document.getElementById('learning-section');
+  if (!section || section.dataset.initialized) return;
+  section.innerHTML = `
+    <div class="container">
+      <h1>📚 Learning & Development Hub</h1>
+      <p class="section-subtitle">Enhance your digital skills</p>
+      <div class="content-card">
+        <div class="progress-item">
+          <div class="progress-header">
+            <strong>Digital Photography for Crafts</strong>
+            <span>42%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:42%;background:#32b8c6;"></div></div>
+          <p style="font-size:13px;margin-top:8px;">15 mins • Beginner</p>
+          <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="alert('Course content coming soon.')">Continue Learning</button>
+        </div>
+        <div class="progress-item" style="margin-top:20px;">
+          <div class="progress-header">
+            <strong>Social Media Marketing Basics</strong>
+            <span>0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:0%;background:#32b8c6;"></div></div>
+          <p style="font-size:13px;margin-top:8px;">60 mins • Beginner</p>
+          <button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="alert('Course content coming soon.')">Start Learning</button>
+        </div>
+      </div>
+    </div>
+  `;
+  section.dataset.initialized = 'true';
+}
+
+function initializeAnalytics() {
+  const section = document.getElementById('analytics-section');
+  if (!section || section.dataset.initialized) return;
+
+  const myProducts = allProducts.filter(p => currentUser && p.userId === currentUser.uid);
+  const totalRevenuePotential = myProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+
+  section.innerHTML = `
+    <div class="container">
+      <h1>📈 Sales Analytics</h1>
+      <p class="section-subtitle">Track your performance and growth</p>
+      <div class="content-grid">
+        <div class="content-card">
+          <h3>📦 Your Listings</h3>
+          <p style="font-size:32px;font-weight:700;color:#32b8c6;">${myProducts.length}</p>
+          <p>Active products listed</p>
+        </div>
+        <div class="content-card">
+          <h3>💰 Listed Value</h3>
+          <p style="font-size:32px;font-weight:700;color:#32b8c6;">₹${totalRevenuePotential.toLocaleString()}</p>
+          <p>Combined value of your listings</p>
+        </div>
+      </div>
+      <div class="content-card" style="margin-top:20px;">
+        <h3>💡 Recommendation</h3>
+        <p style="font-size:13px;color:#6C757D;">Textile products tend to perform 40% better during Oct-Mar wedding season. Consider seasonal collections aligned with your craft type.</p>
+      </div>
+    </div>
+  `;
+  section.dataset.initialized = 'true';
+}
+
 // ===== AI STORY GENERATOR (now using real Groq LLM via Cloud Function) =====
 const functionsInstance = firebase.functions();
 const generateStoryCallable = functionsInstance.httpsCallable("generateStory");
@@ -404,7 +535,5 @@ function showMessage(elementId, message) {
     setTimeout(() => { el.textContent = ""; el.style.display = 'none'; }, 5000);
   }
 }
-
-function initializeAllSections() { console.log("📋 Sections ready"); }
 
 console.log("✅ App.js loaded successfully");
