@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout - Kalasetu</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1>Checkout</h1>
+    </div>
+  </header>
+
+    <main class="container">
+        <div class="checkout-container">
+            <section id="product-details">
+                <!-- Product info will be shown here -->
+            </section>
+
+            <section id="checkout-form-section">
+                <h2>Payment Details</h2>
+                <form id="checkout-form">
+                    <label for="name">Name</label><br/>
+                    <input type="text" id="name" name="name" required /><br/>
+
+                    <label for="email">Email</label><br/>
+                    <input type="email" id="email" name="email" required /><br/>
+
+                    <label for="address">Shipping Address</label><br/>
+                    <textarea id="address" name="address" rows="4" required></textarea><br/>
+
+                    <button type="submit">Complete Purchase</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+  <!-- FIREBASE SCRIPTS -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-storage-compat.js"></script>
+    <script src="checkout.js"></script>
+</body>
+</html>
