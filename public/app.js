@@ -17,6 +17,7 @@ console.log("✅ Firebase Initialized");
 
 let currentUser = null;
 let allProducts = [];
+const CART_COLLECTION = "carts";
 
 function signup() {
   const email = document.getElementById("email").value.trim();
@@ -36,6 +37,45 @@ function signup() {
     })
     .catch(error => showMessage("auth-message", "❌ " + error.message));
 }
+
+function checkAndPromptProfileSetup(user) {
+  db.collection('users').doc(user.uid).get().then(doc => {
+    const data = doc.data() || {};
+    if (!data.name || !data.craftType || !data.location || !data.experienceYears) {
+      document.getElementById("profile-setup-modal").style.display = "block";
+      document.getElementById("setup-name").value = data.name || "";
+      document.getElementById("setup-location").value = data.location || "";
+      document.getElementById("setup-craft").value = data.craftType || "";
+      document.getElementById("setup-exp").value = data.experienceYears || "";
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById("profile-setup-form");
+  if (form) {
+    form.onsubmit = function(event) {
+      event.preventDefault();
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const name = document.getElementById("setup-name").value.trim();
+      const location = document.getElementById("setup-location").value.trim();
+      const craftType = document.getElementById("setup-craft").value.trim();
+      const experienceYears = parseInt(document.getElementById("setup-exp").value, 10) || 0;
+
+      db.collection("users").doc(user.uid).update({
+        name: name,
+        location: location,
+        craftType: craftType,
+        experienceYears: experienceYears
+      }).then(() => {
+        document.getElementById("profile-setup-modal").style.display = "none";
+        alert("Profile updated!");
+      });
+    };
+  }
+});
 
 function login() {
   const email = document.getElementById("email").value.trim();
@@ -61,6 +101,7 @@ function logout() {
 
 function showDashboard(user) {
   currentUser = user;
+  loadCartFromFirestore(user.uid);
   document.getElementById("login-section").style.display = "none";
   document.getElementById("navbar").style.display = "block";
   document.getElementById("user-profile").style.display = "flex";
@@ -80,7 +121,12 @@ function showDashboard(user) {
   initializeAllSections();
 }
 
-auth.onAuthStateChanged(user => { if (user) showDashboard(user); });
+auth.onAuthStateChanged(user => {
+  if (user) {
+    showDashboard(user);
+    checkAndPromptProfileSetup(user);
+  }
+});
 
 function showSection(sectionId) {
   document.querySelectorAll(".section-content").forEach(section => section.style.display = "none");
@@ -89,6 +135,7 @@ function showSection(sectionId) {
     targetSection.style.display = "block";
     if (sectionId === 'products') refreshProductsList();
     else if (sectionId === 'cart') renderCart();
+    else if (sectionId === 'community') loadCommunityProfiles();
   }
   document.querySelectorAll(".nav-link").forEach(link => link.classList.remove("active"));
   const clickedLink = document.querySelector(`[onclick*="'${sectionId}'"]`);
@@ -173,15 +220,60 @@ function renderProducts(products) {
 }
 
 let cart = [];
+
+async function loadCartFromFirestore(userId) {
+  try {
+    const cartDoc = await db.collection(CART_COLLECTION).doc(userId).get();
+    cart = cartDoc.exists ? (cartDoc.data().items || []) : [];
+    renderCart();
+  } catch (error) {
+    console.error("❌ Error loading cart:", error);
+    cart = [];
+  }
+}
+
+async function saveCartToFirestore() {
+  if (!currentUser) return;
+  try {
+    await db.collection(CART_COLLECTION).doc(currentUser.uid).set({
+      userId: currentUser.uid,
+      items: cart,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error("❌ Error saving cart:", error);
+  }
+}
+
 function addToCart(productId) {
   const product = allProducts.find(p => p.id === productId);
-  if (product) { cart.push(product); alert("Added to cart!"); showSection('cart'); }
+  if (!product) return;
+
+  const existingItem = cart.find(item => item.id === productId);
+  if (existingItem) {
+    existingItem.quantity = (existingItem.quantity || 1) + 1;
+  } else {
+    cart.push({ ...product, quantity: 1 });
+  }
+
+  saveCartToFirestore();
+  alert("Added to cart!");
+  showSection('cart');
+}
+
+function removeFromCart(productId) {
+  cart = cart.filter(item => item.id !== productId);
+  saveCartToFirestore();
+  renderCart();
 }
 
 function renderCart() {
   const cartList = document.getElementById('cart-list');
   if (!cartList) return;
-  if (cart.length === 0) { cartList.innerHTML = "<p>Your cart is empty.</p>"; return; }
+  if (cart.length === 0) {
+    cartList.innerHTML = "<p>Your cart is empty.</p>";
+    return;
+  }
   cartList.innerHTML = "";
   cart.forEach(product => {
     const card = document.createElement("div");
@@ -190,8 +282,10 @@ function renderCart() {
       <img src="${product.imageUrl}" class="product-image" onerror="this.src='https://via.placeholder.com/280x220?text=Product'"/>
       <div class="product-info">
         <div class="product-name">${product.name}</div>
-        <div class="product-price">₹${product.price}</div>
-      </div>`;
+        <div class="product-price">₹${product.price} × ${product.quantity || 1}</div>
+        <button class="btn btn-delete" onclick="removeFromCart('${product.id}')">Remove</button>
+      </div>
+    `;
     cartList.appendChild(card);
   });
 }
@@ -208,6 +302,70 @@ function deleteProduct(productId) {
   db.collection('products').doc(productId).delete()
     .then(() => alert("Product deleted successfully."))
     .catch(error => alert("Error deleting product: " + error.message));
+}
+
+function loadCommunityProfiles() {
+  db.collection("users").doc(currentUser.uid).get().then(currentDoc => {
+    const connectedUserIds = (currentDoc.exists && currentDoc.data().connectedUserIds) || [];
+
+    db.collection('users').get().then(snapshot => {
+      let users = [];
+      snapshot.forEach(doc => {
+        if (doc.id !== currentUser.uid) {
+          users.push({ uid: doc.id, ...doc.data() });
+        }
+      });
+      renderCommunityProfiles(users, connectedUserIds);
+    });
+  });
+}
+
+function renderCommunityProfiles(users, connectedUserIds) {
+  const grid = document.getElementById("community-grid");
+  if (!grid) return;
+
+  let connectedHtml = "";
+  let notConnectedHtml = "";
+
+  users.forEach(user => {
+    if (!user.name) return; // skip incomplete profiles
+    const isConnected = connectedUserIds.includes(user.uid);
+    const cardHtml = `
+      <div style="display:flex; align-items:center; padding:14px; border:1px solid #ddd; border-radius:8px; margin-bottom:10px;">
+        <div style="flex:1;">
+          <strong>${user.name}</strong>
+          <p style="font-size:13px;color:#6C757D;margin:2px 0;">${user.craftType || "Craft not set"} • ${user.location || "Location not set"}</p>
+          <p style="font-size:12px;margin:0;">${user.experienceYears || 0} years experience</p>
+        </div>
+        <div>
+          ${isConnected
+            ? `<button class="btn btn-sm btn-danger" onclick="disconnectUser('${user.uid}')">Disconnect</button>`
+            : `<button class="btn btn-sm btn-secondary" onclick="connectUser('${user.uid}')">Connect</button>`}
+        </div>
+      </div>
+    `;
+    if (isConnected) connectedHtml += cardHtml;
+    else notConnectedHtml += cardHtml;
+  });
+
+  grid.innerHTML = `
+    <h3>Connected Artisans</h3>
+    ${connectedHtml || "<p>No connections yet.</p>"}
+    <h3 style="margin-top:24px;">Other Artisans</h3>
+    ${notConnectedHtml || "<p>No other artisans yet.</p>"}
+  `;
+}
+
+function connectUser(otherUid) {
+  db.collection("users").doc(currentUser.uid).update({
+    connectedUserIds: firebase.firestore.FieldValue.arrayUnion(otherUid)
+  }).then(() => loadCommunityProfiles());
+}
+
+function disconnectUser(otherUid) {
+  db.collection("users").doc(currentUser.uid).update({
+    connectedUserIds: firebase.firestore.FieldValue.arrayRemove(otherUid)
+  }).then(() => loadCommunityProfiles());
 }
 
 // ===== AI STORY GENERATOR (now using real Groq LLM via Cloud Function) =====
