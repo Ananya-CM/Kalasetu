@@ -162,6 +162,8 @@ function setupProductsListener() {
     snapshot.forEach(doc => allProducts.push({ id: doc.id, ...doc.data() }));
     refreshProductsList();
     updateUserStats();
+    if (document.getElementById('market-intel-section').style.display === 'block') initializeMarketIntel();
+    if (document.getElementById('analytics-section').style.display === 'block') initializeAnalytics();
   }, error => console.error("❌ Error in products listener:", error));
 }
 
@@ -373,111 +375,176 @@ function disconnectUser(otherUid) {
 
 function initializeMarketIntel() {
   const section = document.getElementById('market-intel-section');
-  if (!section || section.dataset.initialized) return;
+  if (!section) return;
+
+  const categoryCounts = {};
+  const categoryTotalPrice = {};
+  allProducts.forEach(p => {
+    const cat = p.category || "Uncategorized";
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    categoryTotalPrice[cat] = (categoryTotalPrice[cat] || 0) + (p.price || 0);
+  });
+
+  const sortedCategories = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]);
+
+  let trendsHtml = "";
+  if (sortedCategories.length === 0) {
+    trendsHtml = "<p>No products listed yet across the platform.</p>";
+  } else {
+    sortedCategories.slice(0, 5).forEach(cat => {
+      const count = categoryCounts[cat];
+      const avgPrice = (categoryTotalPrice[cat] / count).toFixed(0);
+      trendsHtml += `
+        <div class="trend-item">
+          <div class="trend-name">${cat}</div>
+          <div class="trend-badge high">${count} listing${count > 1 ? 's' : ''}</div>
+          <p class="trend-info">Average price: ₹${avgPrice}</p>
+        </div>`;
+    });
+  }
+
+  const myProducts = allProducts.filter(p => currentUser && p.userId === currentUser.uid);
+  const myAvg = myProducts.length ? myProducts.reduce((s, p) => s + (p.price || 0), 0) / myProducts.length : 0;
+  const overallAvg = allProducts.length ? allProducts.reduce((s, p) => s + (p.price || 0), 0) / allProducts.length : 0;
+
   section.innerHTML = `
     <div class="container">
       <h1>📊 Market Intelligence</h1>
-      <p class="section-subtitle">Insights for your craft business</p>
+      <p class="section-subtitle">Live data from ${allProducts.length} listings on Kalasetu</p>
       <div class="content-grid">
         <div class="content-card">
-          <h3>🔥 Trending Categories</h3>
-          <div class="trend-item">
-            <div class="trend-name">Block Printed Textiles</div>
-            <div class="trend-badge high">+15% High Demand</div>
-            <p class="trend-info">Peak season: Oct-Mar (Wedding season)</p>
-          </div>
-          <div class="trend-item">
-            <div class="trend-name">Natural Dye Products</div>
-            <div class="trend-badge very-high">+28% Very High</div>
-            <p class="trend-info">Year-round demand from eco-conscious buyers</p>
-          </div>
+          <h3>🔥 Top Categories Right Now</h3>
+          ${trendsHtml}
         </div>
         <div class="content-card">
-          <h3>💰 Price Intelligence</h3>
-          <p><strong>Average Market Price:</strong> ₹2,200</p>
-          <p><strong>Your Average:</strong> ₹1,950</p>
-          <p style="color:#28a745;margin-top:12px;">✓ Competitive pricing — consider premium positioning.</p>
+          <h3>💰 Price Comparison</h3>
+          <p><strong>Platform Average:</strong> ₹${overallAvg.toFixed(0)}</p>
+          <p><strong>Your Average:</strong> ₹${myAvg.toFixed(0)}</p>
+          ${myProducts.length === 0
+            ? "<p>Add products to see your comparison.</p>"
+            : myAvg < overallAvg
+              ? `<p style="color:#28a745;margin-top:12px;">✓ Your pricing is below platform average.</p>`
+              : `<p style="color:#e67e22;margin-top:12px;">⚠ Your pricing is above platform average.</p>`}
         </div>
       </div>
     </div>
   `;
-  section.dataset.initialized = 'true';
 }
 
 function initializeMarketing() {
   const section = document.getElementById('marketing-section');
-  if (!section || section.dataset.initialized) return;
+  if (!section) return;
   section.innerHTML = `
     <div class="container">
       <h1>📱 Digital Marketing Toolkit</h1>
-      <p class="section-subtitle">Grow your reach</p>
-      <div class="content-grid">
-        <div class="content-card">
-          <h3>📸 Social Media Manager</h3>
-          <p>Generate engaging posts for Instagram, Facebook & WhatsApp</p>
-          <textarea class="form-control" placeholder="Describe your product..." style="margin:12px 0;"></textarea>
-          <button class="btn btn-primary" onclick="alert('Feature coming soon — this would generate a caption via AI.')">Generate Caption</button>
-        </div>
-        <div class="content-card">
-          <h3>📧 Email Templates</h3>
-          <div class="template-item" onclick="alert('Template preview coming soon.')">
-            <strong>Customer Thank You</strong>
-            <p>Post-purchase appreciation email</p>
-          </div>
-          <div class="template-item" onclick="alert('Template preview coming soon.')">
-            <strong>Monthly Newsletter</strong>
-            <p>Share new products & stories</p>
-          </div>
-        </div>
+      <p class="section-subtitle">AI-powered captions, generated live via Groq</p>
+      <div class="content-card">
+        <h3>📸 Social Media Caption Generator</h3>
+        <textarea id="caption-input" class="form-control" placeholder="Describe your product..." style="margin:12px 0; width:100%; min-height:80px;"></textarea>
+        <button class="btn btn-primary" onclick="generateMarketingCaption()">Generate Caption</button>
+        <div id="caption-result" style="margin-top:16px;"></div>
       </div>
     </div>
   `;
-  section.dataset.initialized = 'true';
 }
 
-function initializeLearning() {
+const generateCaptionCallable = firebase.functions().httpsCallable("generateCaption");
+
+async function generateMarketingCaption() {
+  const input = document.getElementById("caption-input").value.trim();
+  const resultDiv = document.getElementById("caption-result");
+  if (!input) {
+    resultDiv.innerHTML = "<p style='color:#c0152f;'>Please describe your product first.</p>";
+    return;
+  }
+  resultDiv.innerHTML = "<p>⏳ Generating caption...</p>";
+  try {
+    const result = await generateCaptionCallable({ productDescription: input });
+    resultDiv.innerHTML = `<div style="background:#f0f9fa;padding:16px;border-radius:8px;white-space:pre-line;">${result.data.caption}</div>`;
+  } catch (error) {
+    console.error("Error generating caption:", error);
+    resultDiv.innerHTML = "<p style='color:#c0152f;'>Something went wrong. Please try again.</p>";
+  }
+}
+
+const searchYouTubeCallable = firebase.functions().httpsCallable("searchYouTubeVideos");
+
+async function initializeLearning() {
   const section = document.getElementById('learning-section');
-  if (!section || section.dataset.initialized) return;
+  if (!section) return;
+
   section.innerHTML = `
     <div class="container">
       <h1>📚 Learning & Development Hub</h1>
-      <p class="section-subtitle">Enhance your digital skills</p>
-      <div class="content-card">
-        <div class="progress-item">
-          <div class="progress-header">
-            <strong>Digital Photography for Crafts</strong>
-            <span>42%</span>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:42%;background:#32b8c6;"></div></div>
-          <p style="font-size:13px;margin-top:8px;">15 mins • Beginner</p>
-          <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="alert('Course content coming soon.')">Continue Learning</button>
-        </div>
-        <div class="progress-item" style="margin-top:20px;">
-          <div class="progress-header">
-            <strong>Social Media Marketing Basics</strong>
-            <span>0%</span>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:0%;background:#32b8c6;"></div></div>
-          <p style="font-size:13px;margin-top:8px;">60 mins • Beginner</p>
-          <button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="alert('Course content coming soon.')">Start Learning</button>
-        </div>
+      <p class="section-subtitle">Real tutorials based on your craft</p>
+      <div id="learning-videos">
+        <p>⏳ Loading videos for your craft...</p>
       </div>
     </div>
   `;
-  section.dataset.initialized = 'true';
+
+  const craftType = (currentUser && await getUserCraftType()) || "handmade crafts";
+
+  try {
+    const result = await searchYouTubeCallable({ craftType });
+    renderLearningVideos(result.data.videos, craftType);
+  } catch (error) {
+    console.error("Error loading videos:", error);
+    document.getElementById('learning-videos').innerHTML =
+      "<p style='color:#c0152f;'>Couldn't load videos right now. Please try again.</p>";
+  }
+}
+
+async function getUserCraftType() {
+  try {
+    const doc = await db.collection("users").doc(currentUser.uid).get();
+    return doc.exists ? doc.data().craftType : null;
+  } catch {
+    return null;
+  }
+}
+
+function renderLearningVideos(videos, craftType) {
+  const container = document.getElementById('learning-videos');
+  if (!videos || videos.length === 0) {
+    container.innerHTML = "<p>No videos found.</p>";
+    return;
+  }
+
+  let html = `<p style="margin-bottom:16px;">Showing results for: <strong>${craftType}</strong></p>`;
+  html += `<div class="content-grid">`;
+  videos.forEach(video => {
+    html += `
+      <div class="content-card">
+        <iframe width="100%" height="180" src="https://www.youtube.com/embed/${video.videoId}"
+          frameborder="0" allowfullscreen style="border-radius:8px;"></iframe>
+        <h4 style="margin-top:10px;">${video.title}</h4>
+        <p style="font-size:13px;color:#6C757D;">${video.channelTitle}</p>
+      </div>
+    `;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
 }
 
 function initializeAnalytics() {
   const section = document.getElementById('analytics-section');
-  if (!section || section.dataset.initialized) return;
+  if (!section) return;
 
   const myProducts = allProducts.filter(p => currentUser && p.userId === currentUser.uid);
-  const totalRevenuePotential = myProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+  const totalValue = myProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+
+  const categoryBreakdown = {};
+  myProducts.forEach(p => {
+    const cat = p.category || "Uncategorized";
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
+  });
+  const topCategory = Object.keys(categoryBreakdown).sort((a, b) => categoryBreakdown[b] - categoryBreakdown[a])[0];
 
   section.innerHTML = `
     <div class="container">
       <h1>📈 Sales Analytics</h1>
-      <p class="section-subtitle">Track your performance and growth</p>
+      <p class="section-subtitle">Live snapshot of your listings</p>
       <div class="content-grid">
         <div class="content-card">
           <h3>📦 Your Listings</h3>
@@ -486,17 +553,16 @@ function initializeAnalytics() {
         </div>
         <div class="content-card">
           <h3>💰 Listed Value</h3>
-          <p style="font-size:32px;font-weight:700;color:#32b8c6;">₹${totalRevenuePotential.toLocaleString()}</p>
+          <p style="font-size:32px;font-weight:700;color:#32b8c6;">₹${totalValue.toLocaleString()}</p>
           <p>Combined value of your listings</p>
         </div>
       </div>
       <div class="content-card" style="margin-top:20px;">
-        <h3>💡 Recommendation</h3>
-        <p style="font-size:13px;color:#6C757D;">Textile products tend to perform 40% better during Oct-Mar wedding season. Consider seasonal collections aligned with your craft type.</p>
+        <h3>🏷️ Your Top Category</h3>
+        <p>${topCategory ? `${topCategory} (${categoryBreakdown[topCategory]} listing${categoryBreakdown[topCategory] > 1 ? 's' : ''})` : "No products listed yet."}</p>
       </div>
     </div>
   `;
-  section.dataset.initialized = 'true';
 }
 
 // ===== AI STORY GENERATOR (now using real Groq LLM via Cloud Function) =====

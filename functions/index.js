@@ -72,6 +72,85 @@ exports.generateStory = functions.https.onCall(async (request) => {
   }
 });
 
+exports.generateCaption = functions.https.onCall(async (request) => {
+  const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
+  const {productDescription} = request.data;
+
+  if (!productDescription) {
+    throw new functions.https.HttpsError(
+        "invalid-argument",
+        "productDescription is required.",
+    );
+  }
+
+  const prompt =
+    "Write a short, engaging social media caption (2-3 sentences, " +
+    "include 3-5 relevant hashtags) for an Instagram/Facebook post " +
+    "promoting this handmade product:\n\n" +
+    productDescription;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [{role: "user", content: prompt}],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.8,
+      max_tokens: 150,
+    });
+    return {caption: completion.choices[0].message.content};
+  } catch (error) {
+    console.error("Groq API error:", error);
+    throw new functions.https.HttpsError(
+        "internal",
+        "Caption generation failed. Please try again.",
+    );
+  }
+});
+
+exports.searchYouTubeVideos = functions.https.onCall(async (request) => {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  const {craftType} = request.data;
+
+  if (!craftType) {
+    throw new functions.https.HttpsError(
+        "invalid-argument",
+        "craftType is required.",
+    );
+  }
+
+  const query = encodeURIComponent(`${craftType} tutorial art craft`);
+  const url =
+    "https://www.googleapis.com/youtube/v3/search" +
+    `?part=snippet&type=video&maxResults=6&q=${query}&key=${apiKey}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.error) {
+      console.error("YouTube API error:", data.error);
+      throw new functions.https.HttpsError(
+          "internal",
+          "YouTube search failed.",
+      );
+    }
+
+    const videos = data.items.map((item) => ({
+      videoId: item.id.videoId,
+      title: item.snippet.title,
+      thumbnail: item.snippet.thumbnails.medium.url,
+      channelTitle: item.snippet.channelTitle,
+    }));
+
+    return {videos};
+  } catch (error) {
+    console.error("Error fetching YouTube videos:", error);
+    throw new functions.https.HttpsError(
+        "internal",
+        "Failed to fetch videos. Please try again.",
+    );
+  }
+});
+
 // --- 4. Only Owner Can Edit/Delete Product ---
 exports.editProduct = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
