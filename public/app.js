@@ -174,26 +174,54 @@ function showAddProduct() {
   if (form) form.style.display = form.style.display === "none" ? "block" : "none";
 }
 
+const addProductCallable = firebase.functions().httpsCallable("addProduct");
+const deleteProductCallable = firebase.functions().httpsCallable("deleteProduct");
+
 function addProduct() {
   const user = auth.currentUser;
-  if (!user) { showMessage("product-message", "❌ Please login first"); return; }
+  if (!user) {
+    showMessage("product-message", "❌ Please login first");
+    return;
+  }
+
   const name = document.getElementById("product-name").value.trim();
   const desc = document.getElementById("product-desc").value.trim();
   const price = document.getElementById("product-price").value;
   const category = document.getElementById("product-category").value;
   const imageFile = document.getElementById("product-image").files[0];
-  if (!name || !desc || !price || !category || !imageFile) { showMessage("product-message", "❌ Please fill all fields and select an image"); return; }
-  if (isNaN(price) || price <= 0) { showMessage("product-message", "❌ Please enter a valid price"); return; }
+
+  if (!name || !desc || !price || !category || !imageFile) {
+    showMessage("product-message", "❌ Please fill all fields and select an image");
+    return;
+  }
+  if (isNaN(price) || price <= 0) {
+    showMessage("product-message", "❌ Please enter a valid price");
+    return;
+  }
+
   showMessage("product-message", "⏳ Uploading product image...");
   const ref = storage.ref("products/" + user.uid + "/" + Date.now() + "-" + imageFile.name);
+
   ref.put(imageFile)
     .then(snapshot => snapshot.ref.getDownloadURL())
-    .then(url => db.collection("products").add({
-      name, description: desc, price: parseFloat(price), category, imageUrl: url,
-      userId: user.uid, userEmail: user.email, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }))
-    .then(() => { showMessage("product-message", "✅ Product added successfully!"); clearProductForm(); })
-    .catch(error => showMessage("product-message", "❌ Error: " + error.message));
+    .then(imageUrl => {
+      showMessage("product-message", "⏳ Saving product...");
+      return addProductCallable({
+        name,
+        description: desc,
+        price: parseFloat(price),
+        imageUrl,
+        category
+      });
+    })
+    .then(() => {
+      showMessage("product-message", "✅ Product added successfully!");
+      clearProductForm();
+    })
+    .catch(error => {
+      console.error("❌ Error adding product:", error);
+      showMessage("product-message", "❌ Error: " + error.message);
+    });
 }
 
 function clearProductForm() {
@@ -266,33 +294,66 @@ function addToCart(productId) {
   showSection('cart');
 }
 
+function updateCartQuantity(productId, newQuantity) {
+  newQuantity = parseInt(newQuantity, 10);
+  if (isNaN(newQuantity) || newQuantity < 1) {
+    removeFromCart(productId);
+    return;
+  }
+  const item = cart.find(i => i.id === productId);
+  if (item) {
+    item.quantity = newQuantity;
+    saveCartToFirestore();
+    renderCart();
+  }
+}
+
 function removeFromCart(productId) {
   cart = cart.filter(item => item.id !== productId);
   saveCartToFirestore();
   renderCart();
 }
 
+function calculateCartTotal() {
+  return cart.reduce((total, item) => total + (item.price * (item.quantity || 1)), 0);
+}
+
 function renderCart() {
   const cartList = document.getElementById('cart-list');
   if (!cartList) return;
+
   if (cart.length === 0) {
     cartList.innerHTML = "<p>Your cart is empty.</p>";
+    const totalEl = document.getElementById('cart-total');
+    if (totalEl) totalEl.textContent = "₹0";
     return;
   }
+
   cartList.innerHTML = "";
   cart.forEach(product => {
+    const qty = product.quantity || 1;
     const card = document.createElement("div");
     card.className = "product-card";
     card.innerHTML = `
       <img src="${product.imageUrl}" class="product-image" onerror="this.src='https://via.placeholder.com/280x220?text=Product'"/>
       <div class="product-info">
         <div class="product-name">${product.name}</div>
-        <div class="product-price">₹${product.price} × ${product.quantity || 1}</div>
-        <button class="btn btn-delete" onclick="removeFromCart('${product.id}')">Remove</button>
+        <div class="product-price">₹${product.price} each</div>
+        <div style="display:flex; align-items:center; gap:8px; margin:10px 0;">
+          <button onclick="updateCartQuantity('${product.id}', ${qty - 1})" style="padding:4px 10px;">−</button>
+          <input type="number" value="${qty}" min="1" style="width:50px; text-align:center;"
+            onchange="updateCartQuantity('${product.id}', this.value)">
+          <button onclick="updateCartQuantity('${product.id}', ${qty + 1})" style="padding:4px 10px;">+</button>
+        </div>
+        <div style="font-weight:600;">Subtotal: ₹${(product.price * qty).toFixed(2)}</div>
+        <button class="btn btn-delete" onclick="removeFromCart('${product.id}')" style="margin-top:8px;">Remove</button>
       </div>
     `;
     cartList.appendChild(card);
   });
+
+  const totalEl = document.getElementById('cart-total');
+  if (totalEl) totalEl.textContent = `₹${calculateCartTotal().toFixed(2)}`;
 }
 
 function updateUserStats() {
@@ -302,11 +363,13 @@ function updateUserStats() {
 
 function deleteProduct(productId) {
   if (!confirm("Are you sure you want to delete this product?")) return;
-  const product = allProducts.find(p => p.id === productId);
-  if (!product || product.userId !== currentUser.uid) { alert("You don't have permission to delete this product."); return; }
-  db.collection('products').doc(productId).delete()
+
+  deleteProductCallable({ productId })
     .then(() => alert("Product deleted successfully."))
-    .catch(error => alert("Error deleting product: " + error.message));
+    .catch(error => {
+      console.error("Error deleting product:", error);
+      alert("Error deleting product: " + (error.message || "Permission denied or product not found."));
+    });
 }
 
 function loadCommunityProfiles() {

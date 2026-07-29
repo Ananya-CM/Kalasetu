@@ -6,30 +6,30 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // --- 1. Add Product ---
-exports.addProduct = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+exports.addProduct = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Please login.");
   }
+  const {name, description, price, imageUrl, category} = request.data;
 
-  const {name, description, price, imageUrl, category} = data;
+  if (!name || !description || !price || !imageUrl || !category) {
+    throw new functions.https.HttpsError(
+        "invalid-argument",
+        "All product fields are required.",
+    );
+  }
+
   const product = {
     name,
     description,
     price,
     imageUrl,
     category,
-    artisanId: context.auth.uid,
+    userId: request.auth.uid,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-
   const docRef = await db.collection("products").add(product);
   return {success: true, id: docRef.id};
-});
-
-// --- 2. Get All Products ---
-exports.getProducts = functions.https.onCall(async () => {
-  const snapshot = await db.collection("products").get();
-  return snapshot.docs.map((doc) => ({id: doc.id, ...doc.data()}));
 });
 
 // --- 3. Generate AI Story for a Product (real LLM call via Groq) ---
@@ -151,34 +151,30 @@ exports.searchYouTubeVideos = functions.https.onCall(async (request) => {
   }
 });
 
-// --- 4. Only Owner Can Edit/Delete Product ---
-exports.editProduct = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+// --- Delete Product (owner only) ---
+exports.deleteProduct = functions.https.onCall(async (request) => {
+  if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Please login.");
   }
+  const {productId} = request.data;
+  if (!productId) {
+    throw new functions.https.HttpsError(
+        "invalid-argument",
+        "productId is required.",
+    );
+  }
 
-  const doc = await db.collection("products").doc(data.id).get();
+  const doc = await db.collection("products").doc(productId).get();
   if (!doc.exists) {
     throw new functions.https.HttpsError("not-found", "Product not found.");
   }
-
-  if (doc.data().artisanId !== context.auth.uid) {
-    // eslint-disable-next-line max-len
-    throw new functions.https.HttpsError("permission-denied", "Onlyowner can modify.");
+  if (doc.data().userId !== request.auth.uid) {
+    throw new functions.https.HttpsError(
+        "permission-denied",
+        "Only the owner can delete this product.",
+    );
   }
 
-  await db.collection("products").doc(data.id).update(data.updateFields);
+  await db.collection("products").doc(productId).delete();
   return {success: true};
-});
-
-// --- 5. Get Products by Artisan ---
-exports.getMyProducts = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Please login.");
-  }
-
-  const snapshot = await db.collection("products")
-      .where("artisanId", "==", context.auth.uid)
-      .get();
-  return snapshot.docs.map((doc) => ({id: doc.id, ...doc.data()}));
 });
