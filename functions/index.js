@@ -151,6 +151,37 @@ exports.searchYouTubeVideos = functions.https.onCall(async (request) => {
   }
 });
 
+// --- Edit Product (owner only) ---
+exports.editProduct = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Please login.");
+  }
+  const {productId, name, description, price, category} = request.data;
+
+  if (!productId || !name || !description || !price || !category) {
+    throw new functions.https.HttpsError(
+        "invalid-argument",
+        "All fields are required.",
+    );
+  }
+
+  const doc = await db.collection("products").doc(productId).get();
+  if (!doc.exists) {
+    throw new functions.https.HttpsError("not-found", "Product not found.");
+  }
+  if (doc.data().userId !== request.auth.uid) {
+    throw new functions.https.HttpsError(
+        "permission-denied",
+        "Only the owner can edit this product.",
+    );
+  }
+
+  await db.collection("products").doc(productId).update({
+    name, description, price, category,
+  });
+  return {success: true};
+});
+
 // --- Delete Product (owner only) ---
 exports.deleteProduct = functions.https.onCall(async (request) => {
   if (!request.auth) {

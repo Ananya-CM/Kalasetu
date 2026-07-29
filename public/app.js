@@ -139,6 +139,7 @@ function showSection(sectionId) {
     else if (sectionId === 'marketing') initializeMarketing();
     else if (sectionId === 'learning') initializeLearning();
     else if (sectionId === 'analytics') initializeAnalytics();
+    else if (sectionId === 'user-profile-view') loadUserProfile();
   }
   document.querySelectorAll(".nav-link").forEach(link => link.classList.remove("active"));
   const clickedLink = document.querySelector(`[onclick*="'${sectionId}'"]`);
@@ -232,7 +233,10 @@ function clearProductForm() {
 function renderProducts(products) {
   const list = document.getElementById("product-list");
   if (!list) return;
-  if (products.length === 0) { list.innerHTML = `<p class="empty-message">No products yet. Click "Add New Product" to get started!</p>`; return; }
+  if (products.length === 0) {
+    list.innerHTML = `<p class="empty-message">No products yet. Click "Add New Product" to get started!</p>`;
+    return;
+  }
   list.innerHTML = "";
   products.forEach(p => {
     const card = document.createElement("div");
@@ -244,13 +248,87 @@ function renderProducts(products) {
         <div class="product-price">₹${p.price}</div>
         <div class="product-actions" style="margin:10px 0;">
           <button class="btn btn-add-cart" onclick="addToCart('${p.id}')">Add to Cart</button>
-          ${p.userId === currentUser.uid ? `<button class="btn btn-delete" onclick="deleteProduct('${p.id}')">Delete</button>` : ""}
         </div>
         <div class="product-category">${p.category}</div>
       </div>`;
     list.appendChild(card);
   });
 }
+
+const editProductCallable = firebase.functions().httpsCallable("editProduct");
+
+function loadUserProfile() {
+  if (!currentUser) return;
+
+  document.getElementById('profile-email').textContent = currentUser.email;
+  const createdDate = currentUser.metadata.creationTime
+    ? new Date(currentUser.metadata.creationTime).toLocaleDateString()
+    : 'Unknown';
+  document.getElementById('profile-created').textContent = createdDate;
+
+  const myProducts = allProducts.filter(p => p.userId === currentUser.uid);
+  document.getElementById('profile-product-count').textContent = myProducts.length;
+
+  const listEl = document.getElementById('profile-products-list');
+  if (myProducts.length === 0) {
+    listEl.innerHTML = "<p class='empty-message'>No products added yet.</p>";
+    return;
+  }
+
+  listEl.innerHTML = "";
+  myProducts.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "product-card";
+    card.innerHTML = `
+      <img src="${p.imageUrl}" class="product-image" onerror="this.src='https://via.placeholder.com/280x220?text=Product'" />
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div class="product-price">₹${p.price}</div>
+        <div class="product-category">${p.category}</div>
+        <div class="product-actions" style="margin:10px 0; display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="openEditProductModal('${p.id}')">Edit</button>
+          <button class="btn btn-delete" onclick="deleteProduct('${p.id}')">Delete</button>
+        </div>
+      </div>`;
+    listEl.appendChild(card);
+  });
+}
+
+function openEditProductModal(productId) {
+  const product = allProducts.find(p => p.id === productId);
+  if (!product) return;
+
+  document.getElementById('edit-product-id').value = product.id;
+  document.getElementById('edit-name').value = product.name;
+  document.getElementById('edit-description').value = product.description;
+  document.getElementById('edit-price').value = product.price;
+  document.getElementById('edit-category').value = product.category;
+  document.getElementById('edit-product-modal').style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const editForm = document.getElementById('edit-product-form');
+  if (editForm) {
+    editForm.onsubmit = function(event) {
+      event.preventDefault();
+      const productId = document.getElementById('edit-product-id').value;
+      const name = document.getElementById('edit-name').value.trim();
+      const description = document.getElementById('edit-description').value.trim();
+      const price = parseFloat(document.getElementById('edit-price').value);
+      const category = document.getElementById('edit-category').value.trim();
+
+      editProductCallable({ productId, name, description, price, category })
+        .then(() => {
+          document.getElementById('edit-product-modal').style.display = 'none';
+          alert('Product updated!');
+        })
+        .catch(error => {
+          console.error('Error editing product:', error);
+          alert('Error updating product: ' + error.message);
+        });
+    };
+  }
+});
 
 let cart = [];
 

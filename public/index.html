@@ -357,6 +357,29 @@
         </div>
     </div>
 
+    <div id="edit-product-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9000;">
+    <div style="background:#212221; color:#fff; max-width:400px; margin:80px auto; padding:35px 30px; border-radius:10px;">
+        <h2>Edit Product</h2>
+        <form id="edit-product-form">
+        <input type="hidden" id="edit-product-id">
+        <label>Name<br>
+            <input type="text" id="edit-name" required style="width:100%; padding:8px; margin-top:4px;">
+        </label><br><br>
+        <label>Description<br>
+            <textarea id="edit-description" required style="width:100%; padding:8px; margin-top:4px;"></textarea>
+        </label><br><br>
+        <label>Price (₹)<br>
+            <input type="number" id="edit-price" required style="width:100%; padding:8px; margin-top:4px;">
+        </label><br><br>
+        <label>Category<br>
+            <input type="text" id="edit-category" required style="width:100%; padding:8px; margin-top:4px;">
+        </label><br><br>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Save Changes</button>
+        <button type="button" onclick="document.getElementById('edit-product-modal').style.display='none'" style="width:100%; margin-top:8px;">Cancel</button>
+        </form>
+    </div>
+    </div>
+
     <!-- FIREBASE SCRIPTS -->
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
