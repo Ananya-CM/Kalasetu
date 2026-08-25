@@ -93,12 +93,12 @@ firebase deploy
 ---
 ## 📁 **Files**
 ```bash
-├── index.html # Main app
-├── app.js # Firebase logic
-├── style.css # Responsive design
-├── checkout.html # Cart page
-├── checkout.js # Checkout logic
-└── README.md # This file
+├── index.html
+├── app.js 
+├── style.css 
+├── checkout.html
+├── checkout.js
+└── README.md
 ```
 ---
 
