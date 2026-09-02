@@ -1,9 +1,57 @@
-const functions = require("firebase-functions");
+﻿const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const Groq = require("groq-sdk");
 
 admin.initializeApp();
 const db = admin.firestore();
+
+/**
+ * Calls Groq's chat completion API, trying each model in order
+ * until one succeeds.
+ * @param {string} prompt The prompt to send to the model.
+ * @param {number} maxTokens Maximum tokens to generate.
+ * @param {number} temperature Sampling temperature.
+ * @return {Promise<string>} The generated text.
+ */
+async function generateWithFallback(prompt, maxTokens, temperature) {
+  const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
+  const models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+
+  let lastError;
+  for (const model of models) {
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [{role: "user", content: prompt}],
+        model: model,
+        temperature: temperature,
+        max_tokens: maxTokens,
+      });
+      return completion.choices[0].message.content;
+    } catch (error) {
+      console.error(`Groq API error with model ${model}:`, error.message);
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Trims text to end at the last complete sentence, avoiding
+ * mid-sentence cutoffs from token limits.
+ * @param {string} text The text to trim.
+ * @return {string} The trimmed text.
+ */
+function trimToLastSentence(text) {
+  const lastPunctuation = Math.max(
+      text.lastIndexOf("."),
+      text.lastIndexOf("!"),
+      text.lastIndexOf("?"),
+  );
+  if (lastPunctuation > text.length * 0.5) {
+    return text.substring(0, lastPunctuation + 1);
+  }
+  return text;
+}
 
 // --- 1. Add Product ---
 exports.addProduct = functions.https.onCall(async (request) => {
@@ -32,9 +80,8 @@ exports.addProduct = functions.https.onCall(async (request) => {
   return {success: true, id: docRef.id};
 });
 
-// --- 3. Generate AI Story for a Product (real LLM call via Groq) ---
+// --- Generate AI Story for a Product (real LLM call via Groq) ---
 exports.generateStory = functions.https.onCall(async (request) => {
-  const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
   const {productName, craftType, region} = request.data;
 
   if (!productName || !craftType || !region) {
@@ -50,19 +97,14 @@ exports.generateStory = functions.https.onCall(async (request) => {
     `Craft type: ${craftType}\n` +
     `Region of origin: ${region}\n` +
     `Product name: ${productName}\n\n` +
-    "Keep it authentic and grounded — do not invent specific " +
+    "Keep it authentic and grounded - do not invent specific " +
     "historical dates, named events, or family details that " +
     "weren't provided. Focus on the craft tradition and " +
     "regional heritage in general terms.";
 
   try {
-    const completion = await groq.chat.completions.create({
-      messages: [{role: "user", content: prompt}],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 200,
-    });
-    return {story: completion.choices[0].message.content};
+    const story = await generateWithFallback(prompt, 300, 0.7);
+    return {story: trimToLastSentence(story)};
   } catch (error) {
     console.error("Groq API error:", error);
     throw new functions.https.HttpsError(
@@ -72,8 +114,8 @@ exports.generateStory = functions.https.onCall(async (request) => {
   }
 });
 
+// --- Generate Marketing Caption (real LLM call via Groq) ---
 exports.generateCaption = functions.https.onCall(async (request) => {
-  const groq = new Groq({apiKey: process.env.GROQ_API_KEY});
   const {productDescription} = request.data;
 
   if (!productDescription) {
@@ -90,13 +132,8 @@ exports.generateCaption = functions.https.onCall(async (request) => {
     productDescription;
 
   try {
-    const completion = await groq.chat.completions.create({
-      messages: [{role: "user", content: prompt}],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.8,
-      max_tokens: 150,
-    });
-    return {caption: completion.choices[0].message.content};
+    const caption = await generateWithFallback(prompt, 300, 0.8);
+    return {caption: trimToLastSentence(caption)};
   } catch (error) {
     console.error("Groq API error:", error);
     throw new functions.https.HttpsError(
@@ -106,6 +143,7 @@ exports.generateCaption = functions.https.onCall(async (request) => {
   }
 });
 
+// --- Search YouTube Videos ---
 exports.searchYouTubeVideos = functions.https.onCall(async (request) => {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const {craftType} = request.data;
