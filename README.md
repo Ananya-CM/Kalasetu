@@ -29,11 +29,27 @@
 
 ---
 
+### 💳 **Order Service & Payments**
+
+Checkout can run through a separate **Spring Boot** service ([`order-service/`](order-service/)) deployed on Cloud Run:
+
+- Server-side pricing and atomic stock reservation in Firestore transactions
+- Razorpay payments with HMAC-verified checkout callbacks and webhooks
+- Idempotency keys, so a retried request never creates a duplicate order
+- Order state machine (`PENDING_PAYMENT → PAID → SHIPPED → DELIVERED`) with automatic expiry of unpaid orders
+- Append-only ledger of what each artisan is owed
+
+Design, data model and failure handling: [`docs/DESIGN.md`](docs/DESIGN.md). Until `public/config.js` points at the deployed service, checkout uses the original flow.
+
+---
+
 ### 🛠️ **Tech Stack**
 
 **Frontend**: HTML5, CSS3 (Flexbox, Media Queries), Vanilla JavaScript
 
 **Backend**: Firebase (Auth, Firestore, Cloud Storage)
+
+**Order Service**: Java 21, Spring Boot, Razorpay, Docker, Cloud Run
 
 **Database**: Firestore NoSQL (Real-time WebSocket)
 
