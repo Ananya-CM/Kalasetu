@@ -42,51 +42,84 @@ Spring Boot service that handles checkout for Kalasetu: server-side pricing, sto
 
 Firestore and Firebase Auth use Application Default Credentials.
 
-## Run locally
+## Run locally (Windows PowerShell)
 
-```bash
-gcloud auth application-default login
-cd order-service
-export RAZORPAY_KEY_ID=rzp_test_xxx RAZORPAY_KEY_SECRET=xxx RAZORPAY_WEBHOOK_SECRET=xxx JOB_TOKEN=local-token
-mvn spring-boot:run
-```
+Needs JDK 21. Maven is not required: the project includes the Maven wrapper (`mvnw.cmd`).
 
 Run the tests (no cloud access needed; they use an in-memory store and a fake gateway):
 
-```bash
-mvn test
+```powershell
+cd order-service
+.\mvnw.cmd test
 ```
+
+Start the service against your real Firestore:
+
+```powershell
+gcloud auth application-default login
+cd order-service
+$env:RAZORPAY_KEY_ID = "rzp_test_xxx"
+$env:RAZORPAY_KEY_SECRET = "xxx"
+$env:RAZORPAY_WEBHOOK_SECRET = "xxx"
+$env:JOB_TOKEN = "local-token"
+.\mvnw.cmd spring-boot:run
+```
+
+Then open http://localhost:8080/actuator/health.
 
 ## Deploy
 
 The steps below assume the project is already on the Blaze plan, which Cloud Functions requires anyway.
 
+**0. Google Cloud setup (once).**
+
+```powershell
+gcloud auth login
+gcloud config set project kalasetu-25a17
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com `
+  secretmanager.googleapis.com cloudscheduler.googleapis.com
+
+$projectNumber = gcloud projects describe kalasetu-25a17 --format "value(projectNumber)"
+$serviceAccount = "serviceAccount:$projectNumber-compute@developer.gserviceaccount.com"
+gcloud projects add-iam-policy-binding kalasetu-25a17 --member $serviceAccount --role roles/datastore.user
+gcloud projects add-iam-policy-binding kalasetu-25a17 --member $serviceAccount --role roles/secretmanager.secretAccessor
+```
+
 **1. Razorpay (test mode).** In the Razorpay Dashboard, generate test API keys.
 
-**2. Store secrets.**
+**2. Store secrets** (PowerShell). Each value is written to a temporary file without a trailing newline, because a newline would become part of the secret.
 
-```bash
-printf '%s' 'rzp_test_xxx' | gcloud secrets create razorpay-key-id --data-file=-
-printf '%s' 'xxx'          | gcloud secrets create razorpay-key-secret --data-file=-
-printf '%s' 'xxx'          | gcloud secrets create razorpay-webhook-secret --data-file=-
-printf '%s' "$(openssl rand -hex 32)" | gcloud secrets create order-job-token --data-file=-
+```powershell
+function New-Secret($name, $value) {
+    $file = New-TemporaryFile
+    Set-Content -Path $file -Value $value -NoNewline
+    gcloud secrets create $name --data-file="$file"
+    Remove-Item $file
+}
+
+New-Secret razorpay-key-id "rzp_test_xxx"
+New-Secret razorpay-key-secret "xxx"
+New-Secret razorpay-webhook-secret "xxx"
+
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$jobToken = -join ($bytes | ForEach-Object { $_.ToString("x2") })
+New-Secret order-job-token $jobToken
 ```
 
 **3. Deploy to Cloud Run.** Run this from the repository root. The service is public because the browser calls it directly; every order endpoint checks the Firebase token itself.
 
-```bash
-gcloud run deploy kalasetu-order-service \
-  --source order-service \
-  --region asia-south1 \
-  --allow-unauthenticated \
-  --set-secrets RAZORPAY_KEY_ID=razorpay-key-id:latest,RAZORPAY_KEY_SECRET=razorpay-key-secret:latest,RAZORPAY_WEBHOOK_SECRET=razorpay-webhook-secret:latest,JOB_TOKEN=order-job-token:latest
+```powershell
+gcloud run deploy kalasetu-order-service `
+  --source order-service `
+  --region asia-south1 `
+  --allow-unauthenticated `
+  --set-secrets "RAZORPAY_KEY_ID=razorpay-key-id:latest,RAZORPAY_KEY_SECRET=razorpay-key-secret:latest,RAZORPAY_WEBHOOK_SECRET=razorpay-webhook-secret:latest,JOB_TOKEN=order-job-token:latest"
 ```
-
-The Cloud Run service account needs the **Cloud Datastore User** role (Firestore access) and **Secret Manager Secret Accessor** on the four secrets.
 
 **4. Firestore indexes.**
 
-```bash
+```powershell
 firebase deploy --only firestore:indexes
 ```
 
@@ -94,13 +127,16 @@ If the CLI offers to delete indexes that exist in the console but not in `firest
 
 **5. Expiry job.** Every 5 minutes:
 
-```bash
-gcloud scheduler jobs create http expire-unpaid-orders \
-  --location asia-south1 \
-  --schedule "*/5 * * * *" \
-  --http-method POST \
-  --uri "https://<service-url>/internal/jobs/expire-orders" \
-  --headers "X-Job-Token=<value of order-job-token>"
+```powershell
+$serviceUrl = gcloud run services describe kalasetu-order-service --region asia-south1 --format "value(status.url)"
+$jobToken = gcloud secrets versions access latest --secret order-job-token
+
+gcloud scheduler jobs create http expire-unpaid-orders `
+  --location asia-south1 `
+  --schedule "*/5 * * * *" `
+  --http-method POST `
+  --uri "$serviceUrl/internal/jobs/expire-orders" `
+  --headers "X-Job-Token=$jobToken"
 ```
 
 **6. Razorpay webhook.** In the Dashboard, go to Settings → Webhooks and add `https://<service-url>/api/v1/webhooks/razorpay` with events `payment.captured`, `order.paid` and `payment.failed`, using the webhook secret from step 2.
