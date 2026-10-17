@@ -1,0 +1,34 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: kalasetu-order-service
+  threads:
+    virtual:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+kalasetu:
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:kalasetu-25a17}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID}
+    key-secret: ${RAZORPAY_KEY_SECRET}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
+  orders:
+    reservation-ttl: ${ORDER_RESERVATION_TTL:15m}
+  jobs:
+    token: ${JOB_TOKEN:}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://kalasetu-25a17.web.app,https://kalasetu-25a17.firebaseapp.com}

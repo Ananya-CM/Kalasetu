@@ -1,0 +1,21 @@
+package com.kalasetu.orders.service;
+
+/** Stable, machine-readable error codes returned to clients in the {@code code} field. */
+public enum ErrorCode {
+    VALIDATION_FAILED,
+    INVALID_IDEMPOTENCY_KEY,
+    IDEMPOTENCY_KEY_REUSED,
+    PRODUCT_NOT_FOUND,
+    OUT_OF_STOCK,
+    ORDER_NOT_FOUND,
+    NOT_ORDER_SELLER,
+    PAYMENT_NOT_INITIATED,
+    INVALID_PAYMENT_SIGNATURE,
+    STATUS_NOT_SETTABLE,
+    INVALID_STATUS_TRANSITION,
+    INVALID_WEBHOOK_SIGNATURE,
+    PAYMENT_GATEWAY_UNAVAILABLE,
+    STORE_UNAVAILABLE,
+    UNAUTHENTICATED,
+    FORBIDDEN
+}

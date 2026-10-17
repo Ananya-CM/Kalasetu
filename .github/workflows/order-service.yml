@@ -1,0 +1,36 @@
+name: Order service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "order-service/**"
+      - ".github/workflows/order-service.yml"
+  pull_request:
+    paths:
+      - "order-service/**"
+      - ".github/workflows/order-service.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: order-service
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw -B verify
+
+      - name: Build container image
+        run: docker build -t kalasetu-order-service:${{ github.sha }} .
